@@ -15,6 +15,7 @@ export default function Home() {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [studentName, setStudentName] = useState("");
   const [tempBookings, setTempBookings] = useState({}); // For temporary slot reduction
+  const [isSubmitting, setIsSubmitting] = useState(false); // Track submission state
 
   // Fetch booking data from Firestore with real-time updates
   useEffect(() => {
@@ -45,6 +46,8 @@ export default function Home() {
   // Submit the booking to Firestore
   const handleSubmit = async () => {
     if (selectedBooking && studentName) {
+      setIsSubmitting(true); // Set loading state
+
       try {
         // Save the booking details in Firestore's 'bookings' collection
         await addDoc(collection(db, "bookings"), {
@@ -65,6 +68,8 @@ export default function Home() {
         setTempBookings({});
       } catch (error) {
         console.error("Error submitting booking: ", error);
+      } finally {
+        setIsSubmitting(false); // Reset loading state
       }
     }
   };
@@ -81,10 +86,6 @@ export default function Home() {
       <h1 className="text-2xl font-bold mb-4 text-center">
         Available Classes for Replacement
       </h1>
-      <div>
-        Please only select for one kid each. More than one kid, kindly submit
-        separately. Scroll down to input name of child.
-      </div>
       <table className="min-w-full bg-white border border-gray-300">
         <thead>
           <tr className="bg-gray-200">
@@ -132,7 +133,7 @@ export default function Home() {
               value={studentName}
               onChange={(e) => setStudentName(e.target.value)}
               className="border border-gray-300 p-2 rounded w-full"
-              placeholder="Enter child's name"
+              placeholder="Enter your name"
             />
           </div>
 
@@ -140,12 +141,14 @@ export default function Home() {
             <button
               className="bg-green-500 text-white px-4 py-2 rounded"
               onClick={handleSubmit}
+              disabled={isSubmitting}
             >
-              Submit Booking
+              {isSubmitting ? "Saving..." : "Submit Booking"}
             </button>
             <button
               className="bg-red-500 text-white px-4 py-2 rounded"
               onClick={handleCancel}
+              disabled={isSubmitting} // Disable cancel during submission
             >
               Cancel
             </button>
