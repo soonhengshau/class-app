@@ -1,4 +1,6 @@
-"use client";
+// /app/page.js
+"use client"; // This tells Next.js that this is a Client Component
+
 import { useState, useEffect } from "react";
 import { db } from "../lib/firebase"; // Firebase setup
 import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
@@ -10,7 +12,7 @@ export default function Home() {
   useEffect(() => {
     const fetchBookings = async () => {
       try {
-        const querySnapshot = await getDocs(collection(db, "bookings"));
+        const querySnapshot = await getDocs(collection(db, "class"));
         const bookingsData = querySnapshot.docs.map((doc) => ({
           id: doc.id, // Capture document ID for future updates
           ...doc.data(),
@@ -27,7 +29,7 @@ export default function Home() {
   // Handle booking and updating Firestore
   const handleBooking = async (booking) => {
     if (booking.slots_left > 0) {
-      const bookingRef = doc(db, "bookings", booking.id); // Reference to the Firestore document
+      const bookingRef = doc(db, "class", booking.id); // Reference to the Firestore document
 
       try {
         await updateDoc(bookingRef, {
@@ -49,26 +51,42 @@ export default function Home() {
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Available Classes</h1>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {bookings.map((booking) => (
-          <div key={booking.id} className="border p-4 rounded-lg">
-            <h2 className="text-xl font-semibold">{booking.day}</h2>
-            <p>Time: {booking.time}</p>
-            <p>Slots Left: {booking.slots_left}</p>
-            <button
-              className={`mt-2 px-4 py-2 rounded ${
-                booking.slots_left === 0
-                  ? "bg-gray-400 text-white cursor-not-allowed"
-                  : "bg-blue-500 text-white"
-              }`}
-              onClick={() => handleBooking(booking)}
-              disabled={booking.slots_left === 0}
-            >
-              {booking.slots_left === 0 ? "Fully Booked" : "Book Now"}
-            </button>
-          </div>
-        ))}
-      </div>
+      <table className="min-w-full bg-white border border-gray-300">
+        <thead>
+          <tr className="bg-gray-200">
+            <th className="py-2 px-4 border-b text-left text-black">Day</th>
+            <th className="py-2 px-4 border-b text-left text-black">Time</th>
+            <th className="py-2 px-4 border-b text-left text-black">
+              Slots Left
+            </th>
+            <th className="py-2 px-4 border-b text-left text-black">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {bookings.map((booking) => (
+            <tr key={booking.id}>
+              <td className="py-2 px-4 border-b text-black">{booking.day}</td>
+              <td className="py-2 px-4 border-b text-black">{booking.time}</td>
+              <td className="py-2 px-4 border-b text-black">
+                {booking.slots_left}
+              </td>
+              <td className="py-2 px-4 border-b">
+                <button
+                  className={`px-4 py-2 rounded ${
+                    booking.slots_left === 0
+                      ? "bg-gray-400 text-white cursor-not-allowed"
+                      : "bg-blue-500 text-white"
+                  }`}
+                  onClick={() => handleBooking(booking)}
+                  disabled={booking.slots_left === 0}
+                >
+                  {booking.slots_left === 0 ? "Fully Booked" : "Book Now"}
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
