@@ -1,56 +1,90 @@
-// /app/page.js
 "use client"; // This tells Next.js that this is a Client Component
 
 import { useState, useEffect } from "react";
 import { db } from "../lib/firebase"; // Firebase setup
-import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
+import {
+  collection,
+  onSnapshot,
+  updateDoc,
+  doc,
+  addDoc,
+} from "firebase/firestore";
 
 export default function Home() {
   const [bookings, setBookings] = useState([]);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [studentName, setStudentName] = useState("");
+  const [tempBookings, setTempBookings] = useState({}); // For temporary slot reduction
 
-  // Fetch booking data from Firestore
+  // Fetch booking data from Firestore with real-time updates
   useEffect(() => {
-    const fetchBookings = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, "class"));
-        const bookingsData = querySnapshot.docs.map((doc) => ({
-          id: doc.id, // Capture document ID for future updates
-          ...doc.data(),
-        }));
-        setBookings(bookingsData);
-      } catch (error) {
-        console.error("Error fetching bookings: ", error);
-      }
-    };
+    const unsubscribe = onSnapshot(collection(db, "class"), (snapshot) => {
+      const bookingsData = snapshot.docs.map((doc) => ({
+        id: doc.id, // Capture document ID for future updates
+        ...doc.data(),
+      }));
+      setBookings(bookingsData);
+    });
 
-    fetchBookings();
+    // Cleanup the listener when the component is unmounted
+    return () => unsubscribe();
   }, []);
 
   // Handle booking and updating Firestore
-  const handleBooking = async (booking) => {
+  const handleBooking = (booking) => {
     if (booking.slots_left > 0) {
-      const bookingRef = doc(db, "class", booking.id); // Reference to the Firestore document
+      // Temporary reduction of slots
+      setTempBookings((prev) => ({
+        ...prev,
+        [booking.id]: booking.slots_left - 1,
+      }));
+      setSelectedBooking(booking);
+    }
+  };
 
+  // Submit the booking to Firestore
+  const handleSubmit = async () => {
+    if (selectedBooking && studentName) {
       try {
-        await updateDoc(bookingRef, {
-          slots_left: booking.slots_left - 1, // Reduce slots left
+        // Save the booking details in Firestore's 'bookings' collection
+        await addDoc(collection(db, "bookings"), {
+          student_name: studentName,
+          day: selectedBooking.day,
+          time: selectedBooking.time,
         });
 
-        // Update the local state to reflect the changes
-        setBookings((prevBookings) =>
-          prevBookings.map((b) =>
-            b.id === booking.id ? { ...b, slots_left: b.slots_left - 1 } : b
-          )
-        );
+        // Update the slots_left in 'class' collection
+        const bookingRef = doc(db, "class", selectedBooking.id);
+        await updateDoc(bookingRef, {
+          slots_left: tempBookings[selectedBooking.id],
+        });
+
+        // Reset form
+        setStudentName("");
+        setSelectedBooking(null);
+        setTempBookings({});
       } catch (error) {
-        console.error("Error updating booking: ", error);
+        console.error("Error submitting booking: ", error);
       }
     }
   };
 
+  // Cancel the booking selection
+  const handleCancel = () => {
+    setSelectedBooking(null);
+    setStudentName("");
+    setTempBookings({});
+  };
+
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Available Classes</h1>
+      <h1 className="text-2xl font-bold mb-4 text-center">
+        Available Classes for Replacement
+      </h1>
+      <div>
+        Please only select for one kid each. More than one kid, kindly submit
+        separately. Scroll down to input name of child.
+      </div>
       <table className="min-w-full bg-white border border-gray-300">
         <thead>
           <tr className="bg-gray-200">
@@ -68,7 +102,7 @@ export default function Home() {
               <td className="py-2 px-4 border-b text-black">{booking.day}</td>
               <td className="py-2 px-4 border-b text-black">{booking.time}</td>
               <td className="py-2 px-4 border-b text-black">
-                {booking.slots_left}
+                {tempBookings[booking.id] ?? booking.slots_left}
               </td>
               <td className="py-2 px-4 border-b">
                 <button
@@ -87,6 +121,37 @@ export default function Home() {
           ))}
         </tbody>
       </table>
+
+      {selectedBooking && (
+        <div className="mt-6">
+          <h2 className="text-xl font-bold mb-4">Booking Details</h2>
+          <div className="mb-4">
+            <label className="block text-black mb-2">Student Name:</label>
+            <input
+              type="text"
+              value={studentName}
+              onChange={(e) => setStudentName(e.target.value)}
+              className="border border-gray-300 p-2 rounded w-full"
+              placeholder="Enter child's name"
+            />
+          </div>
+
+          <div className="flex gap-4">
+            <button
+              className="bg-green-500 text-white px-4 py-2 rounded"
+              onClick={handleSubmit}
+            >
+              Submit Booking
+            </button>
+            <button
+              className="bg-red-500 text-white px-4 py-2 rounded"
+              onClick={handleCancel}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
