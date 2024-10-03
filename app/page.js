@@ -86,6 +86,10 @@ export default function Home() {
       <h1 className="text-2xl font-bold mb-4 text-center">
         Available Classes for Replacement
       </h1>
+      <div>
+        Dear parents, please book separately for each child. And scroll down to
+        type the child's name.
+      </div>
       <table className="min-w-full bg-white border border-gray-300">
         <thead>
           <tr className="bg-gray-200">
