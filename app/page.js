@@ -1,6 +1,6 @@
 "use client"; // This tells Next.js that this is a Client Component
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { db } from "../lib/firebase"; // Firebase setup
 import {
   collection,
@@ -9,6 +9,7 @@ import {
   doc,
   addDoc,
 } from "firebase/firestore";
+import Skeleton from "@/components/Skeleton";
 
 export default function Home() {
   const [bookings, setBookings] = useState([]);
@@ -16,6 +17,7 @@ export default function Home() {
   const [studentName, setStudentName] = useState("");
   const [tempBookings, setTempBookings] = useState({}); // For temporary slot reduction
   const [isSubmitting, setIsSubmitting] = useState(false); // Track submission state
+  const [loading, setLoading] = useState(true);
 
   // Fetch booking data from Firestore with real-time updates
   useEffect(() => {
@@ -25,6 +27,7 @@ export default function Home() {
         ...doc.data(),
       }));
       setBookings(bookingsData);
+      setLoading(false);
     });
 
     // Cleanup the listener when the component is unmounted
@@ -90,42 +93,56 @@ export default function Home() {
         Dear parents, please book separately for each child. And scroll down to
         type the child's name.
       </div>
-      <table className="min-w-full bg-white border border-gray-300">
-        <thead>
-          <tr className="bg-gray-200">
-            <th className="py-2 px-4 border-b text-left text-black">Day</th>
-            <th className="py-2 px-4 border-b text-left text-black">Time</th>
-            <th className="py-2 px-4 border-b text-left text-black">
-              Slots Left
-            </th>
-            <th className="py-2 px-4 border-b text-left text-black">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {bookings.map((booking) => (
-            <tr key={booking.id}>
-              <td className="py-2 px-4 border-b text-black">{booking.day}</td>
-              <td className="py-2 px-4 border-b text-black">{booking.time}</td>
-              <td className="py-2 px-4 border-b text-black">
-                {tempBookings[booking.id] ?? booking.slots_left}
-              </td>
-              <td className="py-2 px-4 border-b">
-                <button
-                  className={`px-4 py-2 rounded ${
-                    booking.slots_left === 0
-                      ? "bg-gray-400 text-white cursor-not-allowed"
-                      : "bg-blue-500 text-white"
-                  }`}
-                  onClick={() => handleBooking(booking)}
-                  disabled={booking.slots_left === 0}
-                >
-                  {booking.slots_left === 0 ? "Fully Booked" : "Book Now"}
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {loading ? (
+        <Skeleton />
+      ) : (
+        <Suspense fallback={<Skeleton />}>
+          <table className="min-w-full bg-white border border-gray-300">
+            <thead>
+              <tr className="bg-gray-200">
+                <th className="py-2 px-4 border-b text-left text-black">Day</th>
+                <th className="py-2 px-4 border-b text-left text-black">
+                  Time
+                </th>
+                <th className="py-2 px-4 border-b text-left text-black">
+                  Slots Left
+                </th>
+                <th className="py-2 px-4 border-b text-left text-black">
+                  Action
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {bookings.map((booking) => (
+                <tr key={booking.id}>
+                  <td className="py-2 px-4 border-b text-black">
+                    {booking.day}
+                  </td>
+                  <td className="py-2 px-4 border-b text-black">
+                    {booking.time}
+                  </td>
+                  <td className="py-2 px-4 border-b text-black">
+                    {tempBookings[booking.id] ?? booking.slots_left}
+                  </td>
+                  <td className="py-2 px-4 border-b">
+                    <button
+                      className={`px-4 py-2 rounded ${
+                        booking.slots_left === 0
+                          ? "bg-gray-400 text-white cursor-not-allowed"
+                          : "bg-blue-500 text-white"
+                      }`}
+                      onClick={() => handleBooking(booking)}
+                      disabled={booking.slots_left === 0}
+                    >
+                      {booking.slots_left === 0 ? "Fully Booked" : "Book Now"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Suspense>
+      )}
 
       {selectedBooking && (
         <div className="mt-6">
